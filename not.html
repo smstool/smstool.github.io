@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Tambahkan Content Security Policy agar WebView Android mengizinkan Firebase -->
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval'; script-src * 'unsafe-inline' 'unsafe-eval'; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *; style-src * 'unsafe-inline';">
+    <title>Aplikasi Catatan Pengerjaan</title>
+    <style>
+        /* Gaya dasar */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        :root { --primary: #0f172a; --danger: #ef4444; --success: #16a34a; --warning: #f59e0b; --bg-body: #f8fafc; --bg-card: #ffffff; --border: #e2e8f0; --text-main: #334155; --text-muted: #64748b; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-body); color: var(--text-main); display: flex; justify-content: center; padding: 20px 10px; margin: 0; }
+        .container { background-color: var(--bg-card); width: 100%; max-width: 800px; padding: 24px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
+        h2 { font-size: 1.25rem; font-weight: 600; color: var(--primary); margin: 0 0 24px 0; padding-bottom: 16px; border-bottom: 1px solid var(--border); text-align: center; }
+        
+        .form-group { display: flex; flex-direction: column; margin-bottom: 16px; }
+        .form-group label { font-size: 0.875rem; font-weight: 500; margin-bottom: 6px; color: var(--primary); }
+        .form-group input { padding: 10px 14px; font-size: 0.95rem; border: 1px solid var(--border); border-radius: 8px; outline: none; }
+        
+        .action-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; margin-bottom: 20px; }
+        button { flex: 1; min-width: 80px; padding: 10px 12px; font-size: 0.875rem; font-weight: 500; border: none; border-radius: 8px; cursor: pointer; color: white; transition: 0.2s; }
+        button:disabled { background-color: var(--border) !important; color: var(--text-muted) !important; cursor: not-allowed; }
+        
+        #btnSimpan { background-color: var(--primary); }
+        #btnEdit { background-color: var(--warning); }
+        #btnHapus { background-color: var(--danger); }
+        #btnBatal { background-color: transparent; color: var(--text-muted); border: 1px solid var(--border); display: none; }
+        
+        .filter-group { display: flex; flex-direction: column; margin-bottom: 24px; padding-top: 16px; border-top: 1px dashed var(--border); }
+        .filter-group label { font-size: 0.875rem; font-weight: 600; margin-bottom: 8px; color: var(--primary); }
+        .filter-controls { display: flex; gap: 10px; }
+        .filter-controls input { flex: 1; padding: 10px 14px; font-size: 0.95rem; border: 1px solid var(--border); border-radius: 8px; outline: none; }
+        .filter-controls button { flex: none; width: auto; background-color: var(--text-muted); padding: 10px 16px; }
+
+        .table-container { border: 1px solid var(--border); border-radius: 8px; overflow-x: auto; }
+        table { width: 100%; min-width: 650px; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
+        th, td { padding: 14px 16px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        th { background-color: #f8fafc; color: var(--text-muted); font-weight: 500; }
+        tbody tr { cursor: pointer; background-color: var(--bg-card); transition: 0.2s; }
+        tbody tr:hover { background-color: #f1f5f9; }
+        tbody tr.terpilih { background-color: #e2e8f0; border-left: 4px solid var(--primary); }
+        
+        .data-kosong { text-align: center; color: var(--text-muted); padding: 24px !important; font-style: italic; }
+        .aksi-kolom { display: flex; gap: 10px; align-items: center; }
+        .ikon-aksi { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background-color: #f1f5f9; color: var(--text-muted); cursor: pointer; border: 1px solid transparent; }
+        .ikon-aksi.aktif-selesai { background-color: #dcfce7; color: var(--success); border-color: var(--success); }
+        .ikon-aksi.aktif-gagal { background-color: #fee2e2; color: var(--danger); border-color: var(--danger); }
+        
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.4); display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; z-index: 1000; transition: 0.2s; }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-box { background: white; width: 90%; max-width: 350px; padding: 24px; border-radius: 12px; text-align: center; }
+        .modal-box h3 { margin: 0 0 12px 0; color: var(--primary); }
+        .modal-box p { margin: 0 0 24px 0; color: var(--text-muted); font-size: 0.95rem; }
+        .modal-actions { display: flex; gap: 12px; justify-content: center; }
+        .btn-modal { padding: 8px 16px; border-radius: 6px; font-weight: 500; cursor: pointer; border: none; }
+        .btn-modal-ok { background-color: var(--primary); color: white; }
+        .btn-modal-batal { background-color: transparent; color: var(--text-main); border: 1px solid var(--border); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>CATATAN PENGERJAAN</h2>
+
+        <!-- FORM INPUT -->
+        <div class="form-group"><label>Tanggal</label><input type="date" id="inputTanggal"></div>
+        <div class="form-group"><label>Email</label><input type="email" id="inputEmail" placeholder="nama@email.com"></div>
+        <div class="form-group"><label>Keterangan</label><input type="text" id="inputKeterangan" placeholder="Masukkan keterangan..."></div>
+        <div class="form-group"><label>Jam</label><input type="time" id="inputJam"></div>
+
+        <div class="action-buttons">
+            <button id="btnSimpan" onclick="simpanData()">Simpan</button>
+            <button id="btnEdit" onclick="editData()" disabled>Edit</button>
+            <button id="btnHapus" onclick="konfirmasiHapus()" disabled>Hapus</button>
+            <button id="btnBatal" onclick="resetForm()">Batal</button>
+        </div>
+
+        <!-- FILTER / SORTIR TANGGAL -->
+        <div class="filter-group">
+            <label>Sortir / Filter Tanggal:</label>
+            <div class="filter-controls">
+                <input type="date" id="filterTanggal" onchange="renderTabel()">
+                <button onclick="resetFilter()">Semua Data</button>
+            </div>
+        </div>
+
+        <!-- TABEL DATA -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Tanggal</th>
+                        <th>Email</th>
+                        <th>Jam</th>
+                        <th>Keterangan</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="daftarData">
+                    <tr><td colspan="6" class="data-kosong">Memuat data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MODAL -->
+    <div id="customModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 id="modalTitle">Peringatan</h3><p id="modalMessage">Pesan</p>
+            <div class="modal-actions">
+                <button id="modalBtnBatal" class="btn-modal btn-modal-batal" onclick="tutupModal()">Batal</button>
+                <button id="modalBtnOk" class="btn-modal btn-modal-ok">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+
+    <script>
+        let db;
+        let catatanRef;
+        let daftarCatatan = [];
+        let idTerpilih = null; 
+
+        // Set tanggal default ke hari ini saat aplikasi dimuat
+        document.addEventListener("DOMContentLoaded", () => {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('inputTanggal').value = today;
+            document.getElementById('filterTanggal').value = today;
+        });
+
+        function tampilkanModal(judul, pesan, tipe, callback = null) {
+            document.getElementById('modalTitle').innerText = judul;
+            document.getElementById('modalMessage').innerText = pesan;
+            const btnBatal = document.getElementById('modalBtnBatal');
+            const btnOk = document.getElementById('modalBtnOk');
+            if (tipe === 'alert') {
+                btnBatal.style.display = 'none'; btnOk.innerText = 'Mengerti'; btnOk.onclick = tutupModal;
+            } else if (tipe === 'confirm') {
+                btnBatal.style.display = 'block'; btnOk.innerText = 'Ya, Hapus'; btnOk.style.backgroundColor = 'var(--danger)'; 
+                btnOk.onclick = () => { tutupModal(); if(callback) callback(); };
+            }
+            document.getElementById('customModal').classList.add('active');
+        }
+
+        function tutupModal() {
+            document.getElementById('customModal').classList.remove('active');
+            setTimeout(() => { document.getElementById('modalBtnOk').style.backgroundColor = 'var(--primary)'; }, 300);
+        }
+
+        try {
+            const firebaseConfig = {
+                databaseURL: "https://catatanproyek-adcff-default-rtdb.asia-southeast1.firebasedatabase.app/"
+            };
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            catatanRef = db.ref('catatan');
+
+            catatanRef.on('value', (snapshot) => {
+                daftarCatatan = [];
+                snapshot.forEach((childSnapshot) => {
+                    daftarCatatan.push({ id: childSnapshot.key, ...childSnapshot.val() });
+                });
+                renderTabel();
+            }, (errorObject) => {
+                tampilkanModal("Error Database", "Gagal membaca database: " + errorObject.name, "alert");
+            });
+
+        } catch (error) {
+            tampilkanModal("Error Sistem", "Firebase gagal dimuat di perangkat ini: " + error.message, "alert");
+        }
+
+        function resetFilter() {
+            document.getElementById('filterTanggal').value = '';
+            renderTabel();
+        }
+
+        function renderTabel() {
+            const tbody = document.getElementById('daftarData');
+            tbody.innerHTML = ''; 
+            const filterTanggal = document.getElementById('filterTanggal').value;
+
+            // Logika filter tanggal (Hanya tampilkan data yang tanggalnya sama dengan filter)
+            let dataDitampilkan = daftarCatatan;
+            if (filterTanggal) {
+                dataDitampilkan = daftarCatatan.filter(d => d.tanggal === filterTanggal);
+            }
+
+            if (dataDitampilkan.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="data-kosong">${filterTanggal ? 'Tidak ada catatan untuk tanggal ini.' : 'Belum ada catatan.'}</td></tr>`;
+                return;
+            }
+
+            dataDitampilkan.forEach((data, index) => {
+                const tr = document.createElement('tr');
+                tr.onclick = function() { pilihBaris(data.id); };
+                if (idTerpilih === data.id) tr.classList.add('terpilih');
+                const classSelesai = data.status === 'selesai' ? 'aktif-selesai' : '';
+                const classGagal = data.status === 'gagal' ? 'aktif-gagal' : '';
+                
+                tr.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${formatTanggal(data.tanggal)}</td>
+                    <td>${data.email}</td>
+                    <td>${data.jam}</td>
+                    <td>${data.keterangan || '-'}</td>
+                    <td>
+                        <div class="aksi-kolom">
+                            <div class="ikon-aksi ${classSelesai}" onclick="ubahStatus('${data.id}', 'selesai', event)">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            </div>
+                            <div class="ikon-aksi ${classGagal}" onclick="ubahStatus('${data.id}', 'gagal', event)">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function formatTanggal(tgl) {
+            if(!tgl) return '';
+            return new Date(tgl).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function ubahStatus(id, statusBaru, event) {
+            event.stopPropagation(); 
+            if(!db) return;
+            const dataAwal = daftarCatatan.find(d => d.id === id);
+            const statusFinal = dataAwal.status === statusBaru ? null : statusBaru;
+            db.ref('catatan/' + id).update({ status: statusFinal });
+        }
+
+        function simpanData() {
+            if(!db) {
+                tampilkanModal("Gagal", "Sistem database belum siap.", "alert");
+                return;
+            }
+            const tanggal = document.getElementById('inputTanggal').value;
+            const email = document.getElementById('inputEmail').value;
+            const keterangan = document.getElementById('inputKeterangan').value;
+            const jam = document.getElementById('inputJam').value;
+            
+            if (!tanggal || !email || !keterangan || !jam) {
+                tampilkanModal("Belum Lengkap", "Harap isi semua kolom termasuk keterangan.", "alert");
+                return;
+            }
+            document.getElementById('btnSimpan').innerText = "Memproses...";
+            const refBaru = db.ref('catatan').push();
+            refBaru.set({ tanggal, email, keterangan, jam, status: null }).then(() => {
+                document.getElementById('btnSimpan').innerText = "Simpan";
+                // Pastikan filter otomatis pindah ke tanggal data yang baru saja ditambahkan
+                document.getElementById('filterTanggal').value = tanggal;
+                resetForm(false); 
+            }).catch(error => {
+                tampilkanModal("Gagal Menyimpan", error.message, "alert");
+                document.getElementById('btnSimpan').innerText = "Simpan";
+            });
+        }
+
+        function pilihBaris(id) {
+            if (idTerpilih === id) { resetForm(false); return; }
+            idTerpilih = id;
+            const data = daftarCatatan.find(d => d.id === id);
+            document.getElementById('inputTanggal').value = data.tanggal;
+            document.getElementById('inputEmail').value = data.email;
+            document.getElementById('inputKeterangan').value = data.keterangan || '';
+            document.getElementById('inputJam').value = data.jam;
+            
+            document.getElementById('btnSimpan').disabled = true;
+            document.getElementById('btnEdit').disabled = false;
+            document.getElementById('btnHapus').disabled = false;
+            document.getElementById('btnBatal').style.display = 'inline-block';
+            renderTabel(); 
+        }
+
+        function editData() {
+            if (!idTerpilih || !db) return;
+            const tanggal = document.getElementById('inputTanggal').value;
+            const email = document.getElementById('inputEmail').value;
+            const keterangan = document.getElementById('inputKeterangan').value;
+            const jam = document.getElementById('inputJam').value;
+            
+            if (!tanggal || !email || !keterangan || !jam) {
+                tampilkanModal("Belum Lengkap", "Harap isi semua kolom.", "alert");
+                return;
+            }
+            
+            document.getElementById('btnEdit').innerText = "Memproses...";
+            db.ref('catatan/' + idTerpilih).update({ tanggal, email, keterangan, jam }).then(() => {
+                document.getElementById('btnEdit').innerText = "Edit";
+                // Update filter jika tanggal diedit
+                document.getElementById('filterTanggal').value = tanggal;
+                resetForm(false);
+            });
+        }
+
+        function konfirmasiHapus() {
+            if (!idTerpilih || !db) return;
+            tampilkanModal("Hapus Data?", "Data ini akan dihapus permanen.", "confirm", () => {
+                db.ref('catatan/' + idTerpilih).remove().then(() => resetForm(false));
+            });
+        }
+
+        function resetForm(resetDate = true) {
+            if (resetDate) {
+                const today = new Date().toISOString().split('T')[0];
+                document.getElementById('inputTanggal').value = today;
+            }
+            document.getElementById('inputEmail').value = '';
+            document.getElementById('inputKeterangan').value = '';
+            document.getElementById('inputJam').value = '';
+            idTerpilih = null;
+            document.getElementById('btnSimpan').disabled = false;
+            document.getElementById('btnEdit').disabled = true;
+            document.getElementById('btnHapus').disabled = true;
+            document.getElementById('btnBatal').style.display = 'none';
+            renderTabel();
+        }
+    </script>
+</body>
+</html>

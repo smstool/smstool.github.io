@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KELAS DIGITAL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(to bottom, #ffdde1, #ee9ca7);
+            --primary-blue: #3498db;
+            --red-card: #f25c74;
+            --green-card: #2ecc71;
+            --white: #ffffff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+
+        body {
+            background: var(--bg-gradient);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+
+        .mobile-container {
+            width: 100%;
+            max-width: 480px;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* Header Layout */
+        header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .home-btn { color: #e74c3c; font-size: 24px; cursor: pointer; }
+
+        .header-right { display: flex; align-items: center; gap: 10px; }
+
+        .add-btn {
+            background-color: var(--primary-blue);
+            color: white; border: none; padding: 8px 15px;
+            border-radius: 20px; font-size: 14px; font-weight: 600;
+            cursor: pointer; display: flex; align-items: center; gap: 5px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .login-btn { cursor: pointer; transition: 0.3s; }
+        #userIcon { font-size: 30px; color: var(--primary-blue); }
+
+        /* Content Area */
+        .content {
+            background-color: var(--white);
+            border-top-left-radius: 30px; border-top-right-radius: 30px;
+            min-height: calc(100vh - 80px); padding: 25px 20px; margin-top: 10px;
+        }
+
+        .title {
+            text-align: center; color: #2c3e50; font-weight: 600;
+            letter-spacing: 1px; margin-bottom: 25px; font-size: 18px;
+        }
+
+        /* Card List */
+        .list-container { display: flex; flex-direction: column; gap: 15px; }
+
+        .card {
+            display: flex; align-items: center; padding: 15px;
+            border-radius: 15px; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .card.red { background-color: var(--red-card); }
+        .card.green { background-color: var(--green-card); }
+
+        .copy-icon-wrapper {
+            background: rgba(255, 255, 255, 0.2); width: 45px; height: 45px;
+            display: flex; justify-content: center; align-items: center;
+            border-radius: 10px; margin-right: 15px; cursor: pointer;
+        }
+
+        .card-info { flex-grow: 1; }
+        .card-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+        .badges { display: flex; gap: 5px; }
+        .badge {
+            background: rgba(255, 255, 255, 0.3); font-size: 10px;
+            padding: 2px 10px; border-radius: 10px;
+        }
+
+        .actions { display: flex; gap: 8px; }
+        .action-btn {
+            width: 35px; height: 35px; border-radius: 50%; border: none;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; color: white; background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+<div class="mobile-container">
+    <header>
+        <div class="home-btn" onclick="location.reload()">
+            <i class="fa-solid fa-house"></i>
+        </div>
+        <div class="header-right">
+            <button class="add-btn" id="btnTambah">
+                <i class="fa-solid fa-plus"></i> Tambah
+            </button>
+            <div class="login-btn" id="loginBtn">
+                <i class="fa-solid fa-circle-user" id="userIcon"></i>
+            </div>
+        </div>
+    </header>
+
+    <main class="content">
+        <h2 class="title">LINK SHOPEE</h2>
+        <div class="list-container" id="listContainer">
+            </div>
+    </main>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+    // Konfigurasi Firebase Anda
+    const firebaseConfig = {
+        apiKey: "AIzaSyCs_6pMgYBCy8YvyQ1Z2E1fY_CkBI6RBzM",
+        authDomain: "copylink-facac.firebaseapp.com",
+        projectId: "copylink-facac",
+        storageBucket: "copylink-facac.firebasestorage.app",
+        messagingSenderId: "850739817033",
+        appId: "1:850739817033:web:52fee7ffb6d313cd692d98"
+    };
+
+    // Inisialisasi Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    let currentUser = null;
+
+    // --- SISTEM LOGIN ---
+    const loginBtn = document.getElementById('loginBtn');
+    const userIcon = document.getElementById('userIcon');
+
+    loginBtn.onclick = async () => {
+        if (!currentUser) {
+            try {
+                await signInWithPopup(auth, provider);
+                Swal.fire('Berhasil Login!', '', 'success');
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Gagal Login', 'Pastikan domain Anda sudah di-authorize di Firebase Console.', 'error');
+            }
+        } else {
+            Swal.fire({
+                title: 'Akun Anda',
+                text: `Login sebagai: ${currentUser.displayName}`,
+                showCancelButton: true,
+                confirmButtonText: 'Logout',
+                confirmButtonColor: '#e74c3c'
+            }).then((result) => {
+                if (result.isConfirmed) signOut(auth);
+            });
+        }
+    };
+
+    onAuthStateChanged(auth, (user) => {
+        currentUser = user;
+        if (user) {
+            userIcon.style.color = "#2ecc71"; // Berubah hijau jika login
+        } else {
+            userIcon.style.color = "#3498db"; // Biru jika belum login
+        }
+    });
+
+    // --- MANAJEMEN DATA (CRUD) ---
+    const listContainer = document.getElementById('listContainer');
+
+    // Ambil Data Real-time
+    const q = query(collection(db, "shopee_links"), orderBy("createdAt", "desc"));
+    onSnapshot(q, (snapshot) => {
+        listContainer.innerHTML = '';
+        snapshot.forEach((doc) => {
+            renderCard(doc.id, doc.data());
+        });
+    });
+
+    function renderCard(id, data) {
+        const card = document.createElement('div');
+        card.className = `card ${data.color}`;
+        card.innerHTML = `
+            <div class="copy-icon-wrapper" onclick="window.copyText('${data.name}')">
+                <i class="fa-regular fa-copy"></i>
+            </div>
+            <div class="card-info">
+                <div class="card-name">${data.name}</div>
+                <div class="badges">
+                    <span class="badge">STAR</span>
+                    <span class="badge">${data.star || 100}</span>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="action-btn" onclick="window.editItem('${id}', '${data.name}')">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button class="action-btn" onclick="window.deleteItem('${id}')">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
+        `;
+        listContainer.appendChild(card);
+    }
+
+    // Tambah Data
+    document.getElementById('btnTambah').onclick = async () => {
+        if (!currentUser) return Swal.fire('Login Dulu', 'Anda harus login untuk menambah data.', 'warning');
+
+        const { value: formValues } = await Swal.fire({
+            title: 'Tambah Link',
+            html: `
+                <input id="swal-name" class="swal2-input" placeholder="Nama Link">
+                <select id="swal-color" class="swal2-input">
+                    <option value="red">Merah</option>
+                    <option value="green">Hijau</option>
+                </select>
+            `,
+            preConfirm: () => [
+                document.getElementById('swal-name').value,
+                document.getElementById('swal-color').value
+            ]
+        });
+
+        if (formValues && formValues[0]) {
+            await addDoc(collection(db, "shopee_links"), {
+                name: formValues[0],
+                color: formValues[1],
+                star: 100,
+                createdAt: new Date()
+            });
+        }
+    };
+
+    // Fungsi Global agar bisa dipanggil dari HTML
+    window.copyText = (text) => {
+        navigator.clipboard.writeText(text);
+        Swal.fire({ icon: 'success', title: 'Tersalin!', timer: 1000, showConfirmButton: false, toast: true, position: 'top-end' });
+    };
+
+    window.editItem = async (id, oldName) => {
+        if (!currentUser) return Swal.fire('Akses Ditolak', '', 'warning');
+        const { value: newName } = await Swal.fire({ title: 'Edit Nama', input: 'text', inputValue: oldName });
+        if (newName) await updateDoc(doc(db, "shopee_links", id), { name: newName });
+    };
+
+    window.deleteItem = async (id) => {
+        if (!currentUser) return Swal.fire('Akses Ditolak', '', 'warning');
+        const res = await Swal.fire({ title: 'Hapus?', showCancelButton: true, confirmButtonColor: '#d33' });
+        if (res.isConfirmed) await deleteDoc(doc(db, "shopee_links", id));
+    };
+</script>
+
+</body>
+</html>

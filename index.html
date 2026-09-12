@@ -1,4 +1,143 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS HERO Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 0;
+        }
+        /* Navbar Styling */
+        .navbar {
+            background-color: #ffffff;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .brand {
+            font-weight: 800;
+            color: #0088cc;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-badge {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            border: 1px solid #c8e6c9;
+        }
+        .status-badge.error {
+            background-color: #ffebee;
+            color: #c62828;
+            border-color: #ffcdd2;
+        }
+        
+        /* Container Form */
+        .container {
+            max-width: 900px;
+            margin: 30px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border: 1px solid #e0e0e0;
+        }
+        .form-label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #9e9e9e;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            display: block;
+        }
+        .input-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        select, input, textarea {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 14px;
+            outline: none;
+        }
+        .btn-pesan {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-pesan:hover { background-color: #2980b9; }
+        .btn-pesan:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        
+        .tambahan-input {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header / Navbar sesuai gambar -->
+    <div class="navbar">
+        <div class="brand">
+            ☰ SMS HERO 🔁
+        </div>
+        <!-- Status awal diset Offline/CORS, akan berubah jika koneksi Worker berhasil -->
+        <div class="status-badge error" id="statusKoneksi">
+            ✖ Offline/CORS
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <label class="form-label">PILIH PROVIDER / OPERATOR</label>
+        
+        <!-- Bagian form yang ada di gambar -->
+        <div class="input-group">
+            <select id="providerSelect">
+                <option value="otomatis">Otomatis (Paling Murah)</option>
+            </select>
+            <button class="btn-pesan" id="btnPesan">🛒 PESAN</button>
+        </div>
+
+        <!-- Input tambahan tersembunyi agar fungsional (Nomor & Pesan) -->
+        <div class="tambahan-input">
+            <input type="text" id="nomorTujuan" placeholder="Masukkan Nomor Tujuan (misal: 08123...)">
+            <textarea id="isiPesan" placeholder="Ketik pesan SMS di sini..." rows="3"></textarea>
+        </div>
+    </div>
+
+    <script type="module">
+        // =================================================================
+        // 1. BAGIAN KONFIGURASI FIREBASE (PERSIS SEPERTI KODE AWAL ANDA)
+        // =================================================================
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, doc, deleteDoc, updateDoc, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
         import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-database.js";
@@ -18,3 +157,75 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/fireba
         const auth = getAuth(app);
         const db = getFirestore(app);
         const rtdb = getDatabase(app);
+
+
+        // =================================================================
+        // 2. LOGIKA PENGIRIMAN SMS DAN MENGHILANGKAN CORS
+        // =================================================================
+        const btnPesan = document.getElementById('btnPesan');
+        const statusBadge = document.getElementById('statusKoneksi');
+
+        async function prosesKirimPesan() {
+            const provider = document.getElementById('providerSelect').value;
+            const noTujuan = document.getElementById('nomorTujuan').value;
+            const isiPesan = document.getElementById('isiPesan').value;
+
+            if(!noTujuan || !isiPesan) {
+                alert("Nomor tujuan dan isi pesan wajib diisi!");
+                return;
+            }
+
+            // GANTI DENGAN URL WORKER CLOUDFLARE ANDA (Solusi CORS)
+            const WORKER_URL = "https://nama-worker-anda.username.workers.dev"; 
+
+            const payload = {
+                provider: provider,
+                no_tujuan: noTujuan,
+                pesan: isiPesan
+            };
+
+            btnPesan.innerText = "⏳ MEMPROSES...";
+            btnPesan.disabled = true;
+
+            try {
+                // Mengirim request ke Cloudflare Worker (Bukan ke API SMS Langsung)
+                const response = await fetch(WORKER_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Jika sukses melewati Worker tanpa CORS
+                    alert("SMS berhasil dikirim melalui " + provider);
+                    
+                    // Update tampilan badge Offline/CORS di ujung kanan atas menjadi Online
+                    statusBadge.innerHTML = "✔ Online / Terhubung";
+                    statusBadge.classList.remove("error");
+                    
+                    // Opsional: Anda bisa menyimpan log ke Firestore 'db' atau Realtime DB 'rtdb' di sini
+                    
+                } else {
+                    alert("Gagal mengirim SMS: " + result.error);
+                }
+            } catch (error) {
+                console.error("Error CORS/Koneksi:", error);
+                alert("Masih terjadi error CORS atau Jaringan. Pastikan URL Worker sudah benar.");
+                
+                statusBadge.innerHTML = "✖ Offline/CORS";
+                statusBadge.classList.add("error");
+            } finally {
+                btnPesan.innerText = "🛒 PESAN";
+                btnPesan.disabled = false;
+            }
+        }
+
+        // Jalankan fungsi saat tombol PESAN diklik
+        btnPesan.addEventListener('click', prosesKirimPesan);
+    </script>
+</body>
+</html>

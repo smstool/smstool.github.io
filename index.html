@@ -358,14 +358,15 @@
         import { getFirestore, collection, addDoc, onSnapshot, query, doc, deleteDoc, updateDoc, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
         import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-database.js";
 
+        // Konfigurasi Firebase Anda yang baru
         const firebaseConfig = {
-            apiKey: "AIzaSyC-1_1_Mb28fyzxA3EmxaAYNZOxx1zm5HQ",
-            authDomain: "smssuper-85754.firebaseapp.com",
-            databaseURL: "https://smstool-cec2c-default-rtdb.asia-southeast1.firebasedatabase.app/",
-            projectId: "smssuper-85754",
-            storageBucket: "smssuper-85754.firebasestorage.app",
-            messagingSenderId: "516953018540",
-            appId: "1:516953018540:web:729bc35237405193744f09"
+            apiKey: "AIzaSyAUGAYv3SNGZB-jrk0Xp_xEQZrXssgTZtE",
+            authDomain: "smstool-cec2c.firebaseapp.com",
+            databaseURL: "https://smstool-cec2c-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "smstool-cec2c",
+            storageBucket: "smstool-cec2c.firebasestorage.app",
+            messagingSenderId: "351031332398",
+            appId: "1:351031332398:web:1b82b4a56b5ec2540fd9bf"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -387,14 +388,12 @@
         let globalCountdownTimer = null;
 
         // ===== KONFIGURASI API SERVER =====
-        // 1. Ambil status API terakhir dari localStorage (default ke 'HERO' jika belum ada)
         window.currentApiMode = localStorage.getItem('savedApiMode') || 'HERO'; 
         
         const SMS_HERO_API_KEY = "TKLSC4ZYI2KY7O65GMQ3D6SJDZGIQQ26"; 
         const PRIVATE_WORKER_URL = "https://steep-water-6fee.muiz-sneweng.workers.dev/";
         const OTPCEPAT_WORKER_URL = "https://otpcepat-proxy.you-zainul.workers.dev"; 
 
-        // 2. Sesuaikan tampilan judul saat halaman pertama kali dimuat
         const titleEl = document.getElementById('headerBrandTitle');
         if (window.currentApiMode === 'OTPCEPAT') {
             titleEl.innerText = 'OTP CEPAT';
@@ -417,9 +416,7 @@
                 titleEl.style.color = 'var(--secondary)';
             }
             
-            // 3. Simpan pilihan terbaru ke localStorage setiap kali tombol diklik
             localStorage.setItem('savedApiMode', window.currentApiMode);
-            
             updateGlobalBalance(); 
         };
 
